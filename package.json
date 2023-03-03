@@ -1,0 +1,26 @@
+{
+  "name": "wxworkgpt",
+  "version": "0.0.1",
+  "description": "GPT thorugh Wxwork",
+  "main": "app.js",
+  "scripts": {
+    "build": "tsc --build",
+    "start": "npm run build && node ./dist/app.js"
+  },
+  "author": "leolzheng",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/koa": "^2.13.5",
+    "@types/koa-xml-body": "^2.2.0",
+    "@typescript-eslint/eslint-plugin": "^5.54.0",
+    "@typescript-eslint/parser": "^5.54.0",
+    "eslint": "^8.35.0",
+    "typescript": "^4.9.5"
+  },
+  "dependencies": {
+    "koa": "^2.14.1",
+    "koa-xml-body": "^2.2.0",
+    "openai": "^3.2.1",
+    "xml2js": "^0.4.23"
+  }
+}
