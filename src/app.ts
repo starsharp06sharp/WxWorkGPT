@@ -8,7 +8,7 @@ import { encrypt, decrypt, getSignature } from "@wecom/crypto";
 
 const app = new Koa();
 
-app.use(bodyParser());
+app.use(bodyParser({xmlOptions: {explicitArray: false}}));
 
 app.use(logger());
 
@@ -35,7 +35,7 @@ function preprocess_message_content(content: string) : string {
 }
 
 router.post("/callback/wework", async (ctx: Koa.Context) => {
-  const encrypted_req = ctx.request.body["xml"]["Encrypt"][0];
+  const encrypted_req = ctx.request.body["xml"]["Encrypt"];
   const sign = ctx.query["msg_signature"];
   const timestamp = ctx.query["timestamp"];
   const nonce = ctx.query["nonce"];
@@ -54,12 +54,12 @@ router.post("/callback/wework", async (ctx: Koa.Context) => {
   const { message, id } = decrypt(config.weork.encoding_aeskey, encrypted_req);
   console.log("====== Chat ======");
   console.log(message);
-  const parser = new xml2js.Parser();
+  const parser = new xml2js.Parser({explicitArray: false});
   const req_message = await parser.parseStringPromise(message);
 
   // TODO: await 处理 message_body
   console.log(req_message["xml"]["Text"]);
-  const message_content = preprocess_message_content(req_message["xml"]["Text"][0]["Content"][0]);
+  const message_content = preprocess_message_content(req_message["xml"]["Text"]["Content"]);
 
   const resp_message = {
     xml: {
