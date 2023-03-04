@@ -4,6 +4,7 @@ const config = {
     token: "token",
     encoding_aeskey: "encoding_aeskey",
     receiveid: "",
+    robot_name: "GPT 机器人",
   },
 };
 
