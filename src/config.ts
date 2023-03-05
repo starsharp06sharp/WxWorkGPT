@@ -1,4 +1,4 @@
-const config = {
+export default {
   port: 3000,
   weork: {
     token: "token",
@@ -19,4 +19,3 @@ const config = {
   },
 };
 
-export default config;
