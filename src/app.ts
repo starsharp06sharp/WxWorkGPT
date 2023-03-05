@@ -1,14 +1,15 @@
+import { Configuration, OpenAIApi } from "openai";
 import Koa from "koa";
 import bodyParser from "koa-xml-body";
 import logger from "koa-logger";
 import Router from "koa-router";
 import xml2js from "xml2js";
-import config from "./config";
 import { encrypt, decrypt, getSignature } from "@wecom/crypto";
+import config from "./config";
 
 const app = new Koa();
 
-app.use(bodyParser({xmlOptions: {explicitArray: false}}));
+app.use(bodyParser({ xmlOptions: { explicitArray: false } }));
 
 app.use(logger());
 
@@ -30,8 +31,42 @@ router.get("/callback/wework", async (ctx: Koa.Context) => {
   ctx.body = message;
 });
 
-function preprocess_message_content(content: string) : string {
-  return content.replace(`@${config.weork.robot_name}`, '').trim();
+function preprocess_message_content(content: string): string {
+  return content.replace(`@${config.weork.robot_name}`, "").trim();
+}
+
+const configuration = new Configuration({
+  apiKey: config.openai.api_key,
+});
+const openai = new OpenAIApi(configuration);
+
+async function get_chat_completion(
+  rtx: string,
+  message_content: string,
+  chat_id: string
+) {
+  try {
+    const completion = await openai.createChatCompletion(
+      {
+        model: "gpt-3.5-turbo",
+        messages: [{ role: "user", content: message_content, name: rtx }],
+      },
+      { timeout: config.openai.timeout_ms }
+    );
+    if (
+      completion.data.choices.length === 0 ||
+      typeof completion.data.choices[0].message === "undefined"
+    ) {
+      console.log(
+        `createChatCompletion result empty:${completion.data.choices}`
+      );
+      return "ERROR: 请求OpenAI失败 返回结果为空";
+    }
+    return completion.data.choices[0].message.content.trim();
+  } catch (error) {
+    console.log(`get_chat_completion failed: ${error}`);
+    return `ERROR: 请求OpenAI失败:${error}`;
+  }
 }
 
 router.post("/callback/wework", async (ctx: Koa.Context) => {
@@ -54,18 +89,22 @@ router.post("/callback/wework", async (ctx: Koa.Context) => {
   const { message, id } = decrypt(config.weork.encoding_aeskey, encrypted_req);
   console.log("====== Chat ======");
   console.log(message);
-  const parser = new xml2js.Parser({explicitArray: false});
+  const parser = new xml2js.Parser({ explicitArray: false });
   const req_message = await parser.parseStringPromise(message);
 
-  // TODO: await 处理 message_body
-  console.log(req_message["xml"]["Text"]);
-  const message_content = preprocess_message_content(req_message["xml"]["Text"]["Content"]);
+  console.log(req_message["xml"]);
+  const rtx = req_message["xml"]["From"]["Alias"];
+  const chat_id = req_message["xml"]["ChatId"];
+  const message_content = preprocess_message_content(
+    req_message["xml"]["Text"]["Content"]
+  );
+  const resp_content = await get_chat_completion(rtx, message_content, chat_id);
 
   const resp_message = {
     xml: {
       MsgType: "text",
       Text: {
-        Content: `ECHO:${message_content}`,
+        Content: resp_content,
       },
     },
   };
