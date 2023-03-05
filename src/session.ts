@@ -73,10 +73,13 @@ async function get_chat_completion(
     .concat(req_message);
   console.log(`======Request Messages:${JSON.stringify(messages)}`);
   try {
-    const completion = await openai.createChatCompletion({
-      model: "gpt-3.5-turbo",
-      messages: messages,
-    });
+    const completion = await openai.createChatCompletion(
+      {
+        model: "gpt-3.5-turbo",
+        messages: messages,
+      },
+      { timeout: config.openai.timeout_ms }
+    );
     if (
       completion.data.choices.length === 0 ||
       typeof completion.data.choices[0].message === "undefined"
@@ -90,7 +93,7 @@ async function get_chat_completion(
     // 先去除首尾空格再保存/输出
     resp_message.content = resp_message.content.trim();
     get_session(chat_id).push_message(req_message, resp_message);
-    console.log(`Tokens: ${completion.data.usage}`);
+    console.log(`Tokens: ${JSON.stringify(completion.data.usage)}`);
     console.log(`Response Message:${JSON.stringify(resp_message)}======`);
     return resp_message.content;
   } catch (error) {
