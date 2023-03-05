@@ -1,11 +1,12 @@
-import { Configuration, OpenAIApi } from "openai";
 import Koa from "koa";
 import bodyParser from "koa-xml-body";
 import logger from "koa-logger";
 import Router from "koa-router";
 import xml2js from "xml2js";
-import { encrypt, decrypt, getSignature } from "@wecom/crypto";
+import { decrypt, getSignature } from "@wecom/crypto";
 import config from "./config";
+import { get_chat_completion, start_session_clean_up_jobs } from "./session";
+import { send_wxwork_message } from "./wxwork";
 
 const app = new Koa();
 
@@ -35,40 +36,6 @@ function preprocess_message_content(content: string): string {
   return content.replace(`@${config.weork.robot_name}`, "").trim();
 }
 
-const configuration = new Configuration({
-  apiKey: config.openai.api_key,
-});
-const openai = new OpenAIApi(configuration);
-
-async function get_chat_completion(
-  rtx: string,
-  message_content: string,
-  chat_id: string
-) {
-  try {
-    const completion = await openai.createChatCompletion(
-      {
-        model: "gpt-3.5-turbo",
-        messages: [{ role: "user", content: message_content, name: rtx }],
-      },
-      { timeout: config.openai.timeout_ms }
-    );
-    if (
-      completion.data.choices.length === 0 ||
-      typeof completion.data.choices[0].message === "undefined"
-    ) {
-      console.log(
-        `createChatCompletion result empty:${completion.data.choices}`
-      );
-      return "ERROR: 请求OpenAI失败 返回结果为空";
-    }
-    return completion.data.choices[0].message.content.trim();
-  } catch (error) {
-    console.log(`get_chat_completion failed: ${error}`);
-    return `ERROR: 请求OpenAI失败:${error}`;
-  }
-}
-
 router.post("/callback/wework", async (ctx: Koa.Context) => {
   const encrypted_req = ctx.request.body["xml"]["Encrypt"];
   const sign = ctx.query["msg_signature"];
@@ -87,49 +54,27 @@ router.post("/callback/wework", async (ctx: Koa.Context) => {
   ctx.assert(sign === req_sign, 403, "Invalid Signature");
 
   const { message, id } = decrypt(config.weork.encoding_aeskey, encrypted_req);
-  console.log("====== Chat ======");
-  console.log(message);
   const parser = new xml2js.Parser({ explicitArray: false });
   const req_message = await parser.parseStringPromise(message);
 
-  console.log(req_message["xml"]);
   const rtx = req_message["xml"]["From"]["Alias"];
   const chat_id = req_message["xml"]["ChatId"];
   const message_content = preprocess_message_content(
     req_message["xml"]["Text"]["Content"]
   );
-  const resp_content = await get_chat_completion(rtx, message_content, chat_id);
 
-  const resp_message = {
-    xml: {
-      MsgType: "text",
-      Text: {
-        Content: resp_content,
-      },
-    },
-  };
+  // 考虑到企业微信回调超过5s即认为失败, GPT响应远超这个时间，所以用立即返回+另起任务调用GPT+通过http发送消息的方式规避这个限制
+  (async () => {
+    const resp_content = await get_chat_completion(
+      rtx,
+      message_content,
+      chat_id
+    );
 
-  const builder = new xml2js.Builder();
-  const resp_text = builder.buildObject(resp_message);
-  console.log(resp_text);
-  const encrypted_resp = encrypt(config.weork.encoding_aeskey, resp_text, id);
-  const resp_sign = getSignature(
-    config.weork.token,
-    timestamp,
-    nonce,
-    encrypted_resp
-  );
-  ctx.type = ctx.request.type;
-  ctx.body = builder.buildObject({
-    xml: {
-      Encrypt: encrypted_resp,
-      MsgSignature: resp_sign,
-      TimeStamp: timestamp,
-      Nonce: nonce,
-    },
-  });
-  console.log(ctx.body);
-  console.log("====== End ======");
+    send_wxwork_message(chat_id, resp_content);
+  })();
+
+  ctx.body = "";
 });
 
 app.use(router.routes()).use(router.allowedMethods());
@@ -137,3 +82,5 @@ app.use(router.routes()).use(router.allowedMethods());
 app.listen(config.port, () => {
   console.log(`Local: http://127.0.0.1:${config.port}`);
 });
+
+start_session_clean_up_jobs();
