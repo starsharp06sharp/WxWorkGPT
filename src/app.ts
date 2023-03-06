@@ -20,6 +20,7 @@ app
 app.use(async (ctx: WxWorkExtendContext) => {
   const rtx = ctx.wxworkRequestMessage.xml.From.Alias;
   const chat_id = ctx.wxworkRequestMessage.xml.ChatId;
+  const chat_type = ctx.wxworkRequestMessage.xml.ChatType;
   const message_content = preprocess_wxwork_message_content(
     ctx.wxworkRequestMessage.xml.Text.Content
   );
@@ -29,7 +30,8 @@ app.use(async (ctx: WxWorkExtendContext) => {
     const resp_content = await get_chat_completion(
       rtx,
       message_content,
-      chat_id
+      chat_id,
+      chat_type
     );
 
     send_wxwork_message(chat_id, resp_content);

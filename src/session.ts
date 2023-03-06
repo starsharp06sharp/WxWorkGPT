@@ -61,13 +61,17 @@ const openai = new OpenAIApi(configuration);
 async function get_chat_completion(
   rtx: string,
   message_content: string,
-  chat_id: string
+  chat_id: string,
+  chat_type: string
 ) {
   const req_message: ChatCompletionRequestMessage = {
     role: "user",
     content: message_content,
     name: rtx,
   };
+  if (chat_type === "single") {
+    delete req_message.name;
+  }
   const messages = get_session(chat_id)
     .get_messages4completion()
     .concat(req_message);
