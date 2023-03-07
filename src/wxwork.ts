@@ -102,13 +102,13 @@ async function handle_message_callback(
   ctx.wxworkRequestMessage = await parser.parseStringPromise(message);
 
   // Support text message only
-  if (ctx.wxworkRequestMessage.xml.MsgType != 'text') {
+  if (ctx.wxworkRequestMessage.xml.MsgType != "text") {
     return;
   }
 
   await next();
 
-  // Encode 
+  // Encode
   if (ctx.wxworkResponseMessage) {
     const builder = new xml2js.Builder();
     const resp_text = builder.buildObject(ctx.wxworkResponseMessage);

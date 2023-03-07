@@ -18,4 +18,3 @@ export default {
     clear_session_interval: 60,
   },
 };
-
