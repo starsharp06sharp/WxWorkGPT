@@ -8,14 +8,14 @@ import config from "./config";
 
 class Session {
   public trim_messages() {
-    while (this.messages.length > config.session.session_capacity) {
-      this.messages.splice(0, 2);
+    while (this._messages.length > config.session.session_capacity) {
+      this._messages.splice(0, 2);
     }
   }
 
   public expired(): boolean {
     return (
-      Date.now() - this.update_time_ms >
+      Date.now() - this._update_time_ms >
       config.session.session_expire_interval * 1000
     );
   }
@@ -24,22 +24,40 @@ class Session {
     req_message: ChatCompletionRequestMessage,
     resp_message: ChatCompletionResponseMessage
   ) {
-    this.messages.push(req_message);
-    this.messages.push({
+    this._messages.push(req_message);
+    this._messages.push({
       role: resp_message.role,
       content: resp_message.content,
     });
     this.trim_messages();
-    this.update_time_ms = Date.now();
+    this._update_time_ms = Date.now();
   }
 
   public get_messages4completion(): Array<ChatCompletionRequestMessage> {
     this.trim_messages();
-    return this.messages;
+    if (this._system_message) {
+      return [
+        {
+          role: "system",
+          content: this._system_message,
+        } as ChatCompletionRequestMessage,
+      ].concat(this._messages);
+    }
+    return this._messages;
   }
 
-  private update_time_ms = Date.now();
-  private messages: Array<ChatCompletionRequestMessage> = [];
+  get system_message() : string {
+    return this._system_message ? this._system_message : "";
+  }
+
+  set system_message(new_message: string) {
+    this._messages = [];
+    this._system_message = new_message
+  }
+
+  private _update_time_ms = Date.now();
+  private _messages: Array<ChatCompletionRequestMessage> = [];
+  private _system_message?: string;
 }
 
 const session_map: Map<string, Session> = new Map();
@@ -51,6 +69,14 @@ function get_session(chat_id: string): Session {
     session_map.set(chat_id, val);
   }
   return val;
+}
+
+function get_session_system_message(chat_id: string) : string {
+  return get_session(chat_id).system_message;
+}
+
+function set_session_system_message(chat_id: string, message: string) {
+  get_session(chat_id).system_message = message;
 }
 
 const configuration = new Configuration({
@@ -124,4 +150,9 @@ function start_session_clean_up_jobs() {
   console.log("Start session clean_up jobs...");
 }
 
-export { get_chat_completion, start_session_clean_up_jobs };
+export {
+  get_chat_completion,
+  start_session_clean_up_jobs,
+  get_session_system_message,
+  set_session_system_message,
+};
