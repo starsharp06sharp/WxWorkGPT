@@ -10,11 +10,11 @@ export default {
   },
   openai: {
     api_key: "api_key",
-    timeout_ms: 30000,
+    timeout_ms: 60000,
   },
   session: {
-    session_capacity: 64,
-    session_expire_interval: 600,
+    session_capacity: 40,
+    session_expire_interval: 1800,
     clear_session_interval: 60,
   },
 };

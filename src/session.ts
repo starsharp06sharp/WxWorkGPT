@@ -46,13 +46,13 @@ class Session {
     return this._messages;
   }
 
-  get system_message() : string {
+  get system_message(): string {
     return this._system_message ? this._system_message : "";
   }
 
   set system_message(new_message: string) {
     this._messages = [];
-    this._system_message = new_message
+    this._system_message = new_message;
   }
 
   private _update_time_ms = Date.now();
@@ -71,7 +71,7 @@ function get_session(chat_id: string): Session {
   return val;
 }
 
-function get_session_system_message(chat_id: string) : string {
+function get_session_system_message(chat_id: string): string {
   return get_session(chat_id).system_message;
 }
 
